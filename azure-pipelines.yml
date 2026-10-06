@@ -1,0 +1,44 @@
+trigger:
+  - main
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  resourceGroupName: 'rg-honda-OBMEuro7-dev-weu'
+  parameterFile: '$(Build.SourcesDirectory)/bicep/blob-storage-rawfiles-kohera-dev.bicepparam'
+
+
+steps:
+  - task: AzureCLI@2
+    displayName: 'Validate Bicep'
+    inputs:
+      azureSubscription: '$(azureServiceConnection)'
+      scriptType: 'bash'
+      scriptLocation: 'inlineScript'
+      inlineScript: |
+        az bicep build --file "$(Build.SourcesDirectory)/bicep/main.bicep"
+
+  - task: AzureCLI@2
+    displayName: 'Run Bicep What-If'
+    inputs:
+      azureSubscription: '$(azureServiceConnection)'
+      scriptType: 'bash'
+      scriptLocation: 'inlineScript'
+      inlineScript: |
+        az deployment group what-if \
+          --resource-group "$(resourceGroupName)" \
+          --name "pipeline-$(Build.BuildId)" \
+          --parameters "$(parameterFile)"
+
+  - task: AzureCLI@2
+    displayName: 'Deploy Bicep'
+    inputs:
+      azureSubscription: '$(azureServiceConnection)'
+      scriptType: 'bash'
+      scriptLocation: 'inlineScript'
+      inlineScript: |
+        az deployment group create \
+          --resource-group "$(resourceGroupName)" \
+          --name "pipeline-$(Build.BuildId)" \
+          --parameters "$(parameterFile)"
